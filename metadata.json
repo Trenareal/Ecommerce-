@@ -1,0 +1,6 @@
+{
+  "name": "Julia Agro-Market",
+  "description": "A premium agricultural marketplace for high-quality farm products sold across Nigeria, featuring real-time inventory monitoring, custom categories, background buyer simulation, nationwide delivery fees, and order dispatch workflows.",
+  "requestFramePermissions": ["camera"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
