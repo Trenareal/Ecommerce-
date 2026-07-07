@@ -2515,14 +2515,7 @@ export const SellerDashboard: React.FC = () => {
                   <span className="text-[9px] bg-[#16A34A] text-white px-1.5 py-0.5 rounded font-mono font-bold">SYS-STREAM</span>
                 </h3>
                 
-                <button
-                  onClick={() => setSimulateActivity(!simulateActivity)}
-                  className={`text-[10px] px-2 py-1 rounded font-bold uppercase transition-colors shrink-0 ${
-                    simulateActivity ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'
-                  }`}
-                >
-                  Simulation: {simulateActivity ? 'Active' : 'Paused'}
-                </button>
+                {/* Simulation button removed */}
               </div>
 
               {/* Logger console */}

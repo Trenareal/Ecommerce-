@@ -16,7 +16,7 @@ export const CheckoutModal: React.FC = () => {
   } = useStore();
 
   // Checkout phases: 'details' | 'gateway' | 'success'
-  const phase = 'details'; // Removed phase state for simplicity
+  const [phase, setPhase] = useState<'details' | 'gateway' | 'success'>('details');
   const [name, setName] = useState('Josiah Treasure');
   const [phone, setPhone] = useState('08033001234');
   const [address, setAddress] = useState('14 Alara Street, Onike-Yaba');
@@ -25,6 +25,15 @@ export const CheckoutModal: React.FC = () => {
   const [country, setCountry] = useState('United States');
   const [deliveryMethod, setDeliveryMethod] = useState<'home' | 'pickup'>('home');
   const [paymentMethod, setPaymentMethod] = useState<'card' | 'transfer' | 'pod'>('card');
+  
+  // Paystack Simulated Gateway states
+  const [paystackMethod, setPaystackMethod] = useState<'card' | 'transfer'>('card');
+  const [cardNumber, setCardNumber] = useState('');
+  const [cardExpiry, setCardExpiry] = useState('');
+  const [cardCvv, setCardCvv] = useState('');
+  const [gatewayStatus, setGatewayStatus] = useState<'idle' | 'authorizing' | 'otp' | 'verifying' | 'success'>('idle');
+  const [otpCode, setOtpCode] = useState('');
+  const [countdown, setCountdown] = useState(10);
   const [confirmedOrderId, setConfirmedOrderId] = useState('');
 
   // Buyer Login states
@@ -54,19 +63,31 @@ export const CheckoutModal: React.FC = () => {
       showToast('Please fill out all delivery fields.', 'warning');
       return;
     }
-    const orderId = `ORD-${Math.floor(1000 + Math.random() * 9000)}`;
-    setConfirmedOrderId(orderId);
-    placeOrder({
-      name,
-      phone,
-      address,
-      state,
-      country: 'Nigeria',
-      isInternational: false,
-      paymentMethod: 'Pay on Delivery'
-    });
-    // Assuming success phase isn't strictly needed for simplicity, or should trigger a manual state update if needed
-    // Given the structural change, I will leave phase logic as is, or remove it.
+
+    if (paymentMethod === 'pod') {
+      if (isInternational) {
+        showToast('Pay on Delivery is not available for international export orders.', 'warning');
+        return;
+      }
+      // Pay on Delivery goes straight to success
+      const orderId = `ORD-${Math.floor(1000 + Math.random() * 9000)}`;
+      setConfirmedOrderId(orderId);
+      placeOrder({
+        name,
+        phone,
+        address,
+        state,
+        country: 'Nigeria',
+        isInternational: false,
+        paymentMethod: 'Pay on Delivery'
+      });
+      setPhase('success');
+    } else {
+      // Card / Transfer goes to Paystack simulated gateway
+      setPaystackMethod(paymentMethod === 'card' ? 'card' : 'transfer');
+      setPhase('gateway');
+      setGatewayStatus('idle');
+    }
   };
 
   // Paystack Card Payment Simulation
