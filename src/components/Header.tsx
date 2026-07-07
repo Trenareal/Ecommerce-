@@ -21,8 +21,6 @@ export const Header: React.FC = () => {
     loginUser,
     currentAdmin,
     logoutAdmin,
-    simulateActivity,
-    setSimulateActivity,
     currency,
     setCurrency,
     sellerTab,
@@ -515,18 +513,6 @@ export const Header: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Simulation Toggle Option */}
-                <div className="flex items-center justify-between bg-white/5 px-4 py-3 rounded-md border border-[#16A34A]/10 text-xs">
-                  <span className="text-gray-300 font-bold uppercase tracking-wide">Simulation Updates</span>
-                  <button
-                    onClick={() => setSimulateActivity(!simulateActivity)}
-                    className={`flex items-center space-x-1 px-3 py-1.5 rounded font-black transition-all cursor-pointer text-[10px] ${
-                      simulateActivity ? 'bg-[#16A34A] text-white' : 'bg-gray-800 text-gray-400'
-                    }`}
-                  >
-                    <span>{simulateActivity ? 'ACTIVE' : 'PAUSED'}</span>
-                  </button>
-                </div>
               </div>
 
             </div>

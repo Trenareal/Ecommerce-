@@ -12,7 +12,7 @@ export const CheckoutModal: React.FC = () => {
     showToast,
     formatPrice,
     currentUser,
-    loginUser
+    setIsCustomerAuthOpen
   } = useStore();
 
   // Checkout phases: 'details' | 'gateway' | 'success'
@@ -36,10 +36,7 @@ export const CheckoutModal: React.FC = () => {
   const [countdown, setCountdown] = useState(10);
   const [confirmedOrderId, setConfirmedOrderId] = useState('');
 
-  // Buyer Login states
-  const [loginEmail, setLoginEmail] = useState('');
-  const [loginName, setLoginName] = useState('');
-  const [loginPassword, setLoginPassword] = useState('');
+
 
   useEffect(() => {
     if (currentUser) {
@@ -168,7 +165,7 @@ export const CheckoutModal: React.FC = () => {
             </button>
 
             {!currentUser ? (
-              <div className="space-y-6 py-4 animate-fade-in text-xs max-w-sm mx-auto">
+              <div className="space-y-6 py-6 animate-fade-in text-xs max-w-sm mx-auto text-center">
                 <div className="text-center space-y-2">
                   <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto text-[#16A34A] shadow-sm">
                     <Lock className="w-6 h-6 animate-pulse" />
@@ -179,58 +176,20 @@ export const CheckoutModal: React.FC = () => {
                   </p>
                 </div>
 
-                <form onSubmit={(e) => {
-                  e.preventDefault();
-                  if (!loginName.trim() || !loginEmail.trim()) {
-                    showToast('Please enter both name and email to proceed.', 'warning');
-                    return;
-                  }
-                  loginUser(loginName, loginEmail, false);
-                  setName(loginName);
-                  showToast(`Welcome back, ${loginName}! Checkout unlocked.`, 'success');
-                }} className="space-y-4 bg-gray-50 p-5 rounded-lg border border-gray-200 shadow-inner">
-                  <div>
-                    <label className="block text-gray-600 font-bold mb-1">Your Full Name</label>
-                    <input
-                      type="text"
-                      required
-                      value={loginName}
-                      onChange={e => setLoginName(e.target.value)}
-                      placeholder="e.g. Josiah Treasure"
-                      className="w-full bg-white border border-gray-200 rounded px-3 py-2 focus:outline-none focus:ring-1 focus:ring-green-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-gray-600 font-bold mb-1">Email Address</label>
-                    <input
-                      type="email"
-                      required
-                      value={loginEmail}
-                      onChange={e => setLoginEmail(e.target.value)}
-                      placeholder="e.g. josiah@example.com"
-                      className="w-full bg-white border border-gray-200 rounded px-3 py-2 focus:outline-none focus:ring-1 focus:ring-green-500 font-mono"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-gray-600 font-bold mb-1">Passcode / PIN (Optional)</label>
-                    <input
-                      type="password"
-                      placeholder="••••"
-                      maxLength={4}
-                      value={loginPassword}
-                      onChange={e => setLoginPassword(e.target.value)}
-                      className="w-full bg-white border border-gray-200 rounded px-3 py-2 focus:outline-none focus:ring-1 focus:ring-green-500 font-mono"
-                    />
-                  </div>
-
+                <div className="space-y-3">
                   <button
-                    type="submit"
-                    className="w-full bg-[#16A34A] hover:bg-[#15803D] text-white font-extrabold uppercase py-2.5 rounded shadow-md transition-colors cursor-pointer border-none text-[11px] flex items-center justify-center space-x-1.5"
+                    onClick={() => {
+                      setIsCustomerAuthOpen(true);
+                    }}
+                    className="w-full bg-[#16A34A] hover:bg-[#15803D] text-white font-extrabold uppercase py-3 rounded shadow-md transition-colors cursor-pointer text-xs flex items-center justify-center space-x-1.5"
                   >
                     <ShieldCheck className="w-4 h-4 text-white" />
-                    <span>Sign In & Unlock Payments</span>
+                    <span>Customer Log In / Sign Up</span>
                   </button>
-                </form>
+                  <p className="text-[10px] text-gray-400">
+                    You must sign in as a customer to checkout. Administrators cannot check out using customer accounts.
+                  </p>
+                </div>
 
                 <div className="text-center pt-2">
                   <p className="text-[10px] text-gray-400">

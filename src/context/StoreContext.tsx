@@ -18,7 +18,6 @@ interface StoreContextType {
   isCustomerCareOpen: boolean;
   isCustomerAuthOpen: boolean;
   isCustomerDashboardOpen: boolean;
-  simulateActivity: boolean;
   currentUser: { name: string; email: string; isSeller: boolean } | null;
   currentAdmin: { name: string; email: string; password?: string } | null;
   adminUsers: { name: string; email: string; password?: string }[];
@@ -36,7 +35,6 @@ interface StoreContextType {
   setIsCustomerCareOpen: (open: boolean) => void;
   setIsCustomerAuthOpen: (open: boolean) => void;
   setIsCustomerDashboardOpen: (open: boolean) => void;
-  setSimulateActivity: (active: boolean) => void;
   setCurrency: (currency: 'NGN' | 'USD') => void;
   setSellerTab: (tab: 'overview' | 'customers' | 'products' | 'orders' | 'inventory' | 'discounts' | 'coupons' | 'reports' | 'settings' | 'logs' | 'audits') => void;
   formatPrice: (priceInNaira: number) => string;
@@ -61,6 +59,7 @@ interface StoreContextType {
   updateProduct: (productId: string, updatedFields: Partial<Product>) => void;
   deleteProduct: (productId: string) => void;
   addVerifiedPhoto: (productId: string, photoBase64: string, stock: number) => void;
+  clearAllOrders: () => void;
   
   showToast: (message: string, type?: 'success' | 'info' | 'warning') => void;
   hideToast: () => void;
@@ -281,9 +280,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [isCustomerAuthOpen, setIsCustomerAuthOpen] = useState(false);
   const [isCustomerDashboardOpen, setIsCustomerDashboardOpen] = useState(false);
   
-  // Background Activity Simulation toggle
-  const [simulateActivity, setSimulateActivity] = useState(true);
-
   // Currency selection state ('NGN' | 'USD')
   const [currency, setCurrency] = useState<'NGN' | 'USD'>(() => {
     const saved = localStorage.getItem('julia_agro_currency');
@@ -318,8 +314,12 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   // Authenticated user
   const [currentUser, setCurrentUser] = useState<{ name: string; email: string; isSeller: boolean } | null>(() => {
-    const saved = localStorage.getItem('julia_agro_user');
-    return saved ? JSON.parse(saved) : { name: 'Josiah Treasure', email: 'josiahtreasure1424@gmail.com', isSeller: false };
+    // Clear legacy localStorage data if any
+    try {
+      localStorage.removeItem('julia_agro_user');
+    } catch (e) {}
+    const saved = sessionStorage.getItem('julia_agro_user');
+    return saved ? JSON.parse(saved) : null;
   });
 
   // Admin user profiles database
@@ -333,7 +333,11 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   // Current logged in Administrator
   const [currentAdmin, setCurrentAdmin] = useState<{ name: string; email: string; password?: string } | null>(() => {
-    const saved = localStorage.getItem('julia_agro_current_admin');
+    // Clear legacy localStorage data if any
+    try {
+      localStorage.removeItem('julia_agro_current_admin');
+    } catch (e) {}
+    const saved = sessionStorage.getItem('julia_agro_current_admin');
     return saved ? JSON.parse(saved) : null;
   });
 
@@ -405,9 +409,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   useEffect(() => {
     if (currentUser) {
-      localStorage.setItem('julia_agro_user', JSON.stringify(currentUser));
+      sessionStorage.setItem('julia_agro_user', JSON.stringify(currentUser));
     } else {
-      localStorage.removeItem('julia_agro_user');
+      sessionStorage.removeItem('julia_agro_user');
     }
   }, [currentUser]);
 
@@ -417,9 +421,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   useEffect(() => {
     if (currentAdmin) {
-      localStorage.setItem('julia_agro_current_admin', JSON.stringify(currentAdmin));
+      sessionStorage.setItem('julia_agro_current_admin', JSON.stringify(currentAdmin));
     } else {
-      localStorage.removeItem('julia_agro_current_admin');
+      sessionStorage.removeItem('julia_agro_current_admin');
     }
   }, [currentAdmin]);
 
@@ -444,6 +448,11 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const loginAdmin = (email: string, passcode: string): boolean => {
+    const isCustomer = customers.some(c => c.email.toLowerCase() === email.toLowerCase());
+    if (isCustomer) {
+      showToast('This email is registered as a Customer. Customers cannot log into Admin accounts.', 'warning');
+      return false;
+    }
     const found = adminUsers.find(
       u => u.email.toLowerCase() === email.toLowerCase() && (u.password === passcode || passcode === 'admin123')
     );
@@ -457,6 +466,11 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const registerAdmin = (name: string, email: string, passcode: string): boolean => {
+    const isCustomer = customers.some(c => c.email.toLowerCase() === email.toLowerCase());
+    if (isCustomer) {
+      showToast('This email is registered as a Customer and cannot be used to onboard as an Administrator.', 'warning');
+      return false;
+    }
     const exists = adminUsers.some(u => u.email.toLowerCase() === email.toLowerCase());
     if (exists) {
       showToast('This email is already registered as an administrator.', 'warning');
@@ -600,6 +614,11 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const registerCustomer = (name: string, email: string, phone: string, location: string, password?: string): boolean => {
+    const isAdmin = adminUsers.some(a => a.email.toLowerCase() === email.toLowerCase());
+    if (isAdmin) {
+      showToast('This email is registered as an Administrator. Admins cannot create Customer accounts.', 'warning');
+      return false;
+    }
     const exists = customers.some(c => c.email.toLowerCase() === email.toLowerCase());
     if (exists) {
       showToast('This email is already registered.', 'warning');
@@ -626,6 +645,11 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const loginCustomerWithCredentials = (email: string, password?: string): boolean => {
+    const isAdmin = adminUsers.some(a => a.email.toLowerCase() === email.toLowerCase());
+    if (isAdmin) {
+      showToast('This email is registered as an Administrator. Admins cannot log into Customer accounts.', 'warning');
+      return false;
+    }
     const found = customers.find(c => c.email.toLowerCase() === email.toLowerCase());
     if (found) {
       if (!found.isActive) {
@@ -1039,95 +1063,11 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     showToast(`Stock photo captured and verified successfully!`, 'success');
   };
 
-  // --- Real-time Activity Simulation Engine ---
-  useEffect(() => {
-    if (!simulateActivity) return;
-
-    const interval = setInterval(() => {
-      // Find a random product with stock > 0
-      const activeProducts = products.filter(p => p.stock > 0);
-      if (activeProducts.length === 0) return;
-
-      const randomProduct = activeProducts[Math.floor(Math.random() * activeProducts.length)];
-      
-      // Determine if global purchase (only possible if product is export grade)
-      const isGlobalPurchase = !!randomProduct.isExportGrade && Math.random() > 0.4;
-
-      // Select a random name & city/country
-      const buyer = isGlobalPurchase
-        ? GLOBAL_MOCK_NAMES[Math.floor(Math.random() * GLOBAL_MOCK_NAMES.length)]
-        : NIGERIAN_MOCK_NAMES[Math.floor(Math.random() * NIGERIAN_MOCK_NAMES.length)];
-      
-      // Random quantity (1 or 2, mostly 1)
-      const qty = Math.random() > 0.85 ? 2 : 1;
-      const actualQty = Math.min(qty, randomProduct.stock);
-
-      if (actualQty <= 0) return;
-
-      // Update product list (decrement stock)
-      setProducts(prevProducts => {
-        return prevProducts.map(p => {
-          if (p.id === randomProduct.id) {
-            return { ...p, stock: p.stock - actualQty };
-          }
-          return p;
-        });
-      });
-
-      // Create log
-      const logId = `log-sim-${Date.now()}`;
-      const logMessage = isGlobalPurchase
-        ? `[Global Export] ${buyer.name} (${(buyer as any).country}) purchased ${actualQty}x ${randomProduct.title.slice(0, 30)}... Phytosanitary certified.`
-        : `[Domestic Buy] ${buyer.name} (${buyer.city}) purchased ${actualQty}x ${randomProduct.title.slice(0, 30)}... (Stock left: ${randomProduct.stock - actualQty})`;
-      
-      const newLog: ActivityLog = {
-        id: logId,
-        message: logMessage,
-        type: 'purchase',
-        timestamp: new Date().toISOString(),
-        productId: randomProduct.id
-      };
-      setLogs(prev => [newLog, ...prev]);
-
-      // Create matching simulated order for visual charts and analytics
-      const subtotal = randomProduct.price * actualQty;
-      const deliveryFee = isGlobalPurchase
-        ? (INTERNATIONAL_DELIVERY_FEES[(buyer as any).country] || 75000)
-        : 2000;
-      const orderId = `ORD-${Math.floor(1000 + Math.random() * 9000)}`;
-      const simOrder: Order = {
-        id: orderId,
-        items: [
-          {
-            productId: randomProduct.id,
-            title: randomProduct.title,
-            price: randomProduct.price,
-            quantity: actualQty,
-            image: randomProduct.image
-          }
-        ],
-        subtotal,
-        deliveryFee,
-        total: subtotal + deliveryFee,
-        customerName: `${buyer.name} ${isGlobalPurchase ? '(Global Export)' : '(Simulated)'}`,
-        phone: isGlobalPurchase ? '+' + Math.floor(1000000000 + Math.random() * 9000000000) : '080' + Math.floor(1000000 + Math.random() * 9000000),
-        address: isGlobalPurchase ? `Export Air Terminal Container Hub, Priority Freight` : `Street Address, ${buyer.city.split(',')[0]}`,
-        state: isGlobalPurchase ? '' : buyer.city.split(',')[1].trim(),
-        country: isGlobalPurchase ? (buyer as any).country : 'Nigeria',
-        isInternational: isGlobalPurchase,
-        paymentMethod: isGlobalPurchase ? 'Bank Transfer' : (Math.random() > 0.3 ? 'Paystack Card' : 'Bank Transfer'),
-        status: Math.random() > 0.5 ? 'Shipped' : 'Pending',
-        createdAt: new Date().toISOString()
-      };
-      setOrders(prev => {
-        const filtered = prev.filter(o => o.id !== simOrder.id);
-        return [simOrder, ...filtered];
-      });
-
-    }, 15000); // Trigger every 15 seconds
-
-    return () => clearInterval(interval);
-  }, [simulateActivity, products]);
+  const clearAllOrders = () => {
+    setOrders([]);
+    localStorage.removeItem('julia_agro_orders');
+    showToast('All orders cleared.', 'success');
+  };
 
   return (
     <StoreContext.Provider value={{
@@ -1146,7 +1086,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       isCustomerCareOpen,
       isCustomerAuthOpen,
       isCustomerDashboardOpen,
-      simulateActivity,
       currentUser,
       currentAdmin,
       adminUsers,
@@ -1164,7 +1103,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       setIsCustomerCareOpen,
       setIsCustomerAuthOpen,
       setIsCustomerDashboardOpen,
-      setSimulateActivity,
       setCurrency,
       setSellerTab,
       formatPrice,
@@ -1181,6 +1119,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       updateProduct,
       deleteProduct,
       addVerifiedPhoto,
+      clearAllOrders,
       
       showToast,
       hideToast,

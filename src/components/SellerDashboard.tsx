@@ -48,7 +48,8 @@ export const SellerDashboard: React.FC = () => {
     toggleCustomerStatus,
     updateStoreSettings,
     sellerTab: activeTab,
-    setSellerTab: setActiveTab
+    setSellerTab: setActiveTab,
+    clearAllOrders
   } = useStore();
 
   // Admin Login States
@@ -189,21 +190,15 @@ export const SellerDashboard: React.FC = () => {
     setEditingProduct(null);
   };
 
-  const handleConfirmOrderSubmit = async (e: React.FormEvent) => {
+  const handleConfirmOrderSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!confirmingOrder) return;
 
-    setIsSimulatingSend(true);
-    setSimulationStep(1); // Loading step
-
-    // Simulate sending delays for WhatsApp and Email notifications
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-    
-    setIsSimulatingSend(false);
-    setSimulationStep(2); // Success step
-
     // Update the order in StoreContext
     updateOrderStatus(confirmingOrder.id, 'Shipped', deliveryTimeframe);
+    showToast(`Order ${confirmingOrder.id} has been successfully shipped!`, 'success');
+    setConfirmingOrder(null);
+    setCustomNote('');
   };
 
   const startEditProduct = (prod: Product) => {
@@ -528,9 +523,6 @@ export const SellerDashboard: React.FC = () => {
                 <h1 className="text-sm sm:text-base md:text-lg font-black tracking-wider text-white">
                   JULIA AGRO-SELLER CENTER
                 </h1>
-                <span className="text-[9px] sm:text-[10px] bg-green-600 text-white font-mono px-1.5 py-0.5 rounded uppercase font-bold tracking-widest animate-pulse whitespace-nowrap">
-                  LIVE METRICS
-                </span>
               </div>
               <p className="text-[10px] text-gray-400 mt-0.5 max-w-lg hidden sm:block">
                 Manage real-time catalog, track dynamic inventory alerts & fulfill incoming orders.
@@ -2384,7 +2376,22 @@ export const SellerDashboard: React.FC = () => {
           {/* LIVE ORDERS TAB */}
           {activeTab === 'orders' && (
             <div className="bg-white rounded-lg p-5 border border-gray-200 shadow-sm space-y-4 animate-fade-in">
-              <h3 className="text-xs font-bold text-gray-900 uppercase tracking-wider border-b border-gray-200 pb-3">Incoming Orders Queue</h3>
+              <div className="flex items-center justify-between border-b border-gray-200 pb-3">
+                <h3 className="text-xs font-bold text-gray-900 uppercase tracking-wider">Incoming Orders Queue</h3>
+                {orders.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (window.confirm("Are you sure you want to clear all orders? This cannot be undone.")) {
+                        clearAllOrders();
+                      }
+                    }}
+                    className="text-[10px] text-red-600 hover:text-red-800 font-bold uppercase tracking-wider bg-red-50 hover:bg-red-100 px-2.5 py-1 rounded transition-colors cursor-pointer border border-red-200/50"
+                  >
+                    Clear All Orders
+                  </button>
+                )}
+              </div>
               
               {orders.length === 0 ? (
                 <div className="text-center py-10 text-gray-400 flex flex-col items-center">
@@ -2625,331 +2632,124 @@ export const SellerDashboard: React.FC = () => {
           <div 
             className="fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity"
             onClick={() => {
-              if (!isSimulatingSend) {
-                setConfirmingOrder(null);
-                setSimulationStep(0);
-              }
+              setConfirmingOrder(null);
             }}
           />
 
           <div className="flex min-h-screen items-center justify-center p-4 text-center sm:p-6">
             <div 
-              className="relative transform overflow-hidden rounded-xl bg-white text-left shadow-2xl transition-all sm:my-8 w-full max-w-4xl flex flex-col max-h-[90vh] border border-gray-100 animate-fade-in"
+              className="relative transform overflow-hidden rounded-xl bg-white text-left shadow-2xl transition-all sm:my-8 w-full max-w-lg flex flex-col border border-gray-100 animate-fade-in"
               onClick={(e) => e.stopPropagation()}
             >
               {/* Header */}
-              <div className="bg-gradient-to-r from-green-800 to-green-700 text-white px-6 py-4 flex items-center justify-between">
-                <div className="flex items-center space-x-2.5">
-                  <CheckCircle className="w-5 h-5 text-green-200" />
+              <div className="bg-gradient-to-r from-green-800 to-green-700 text-white px-5 py-4 flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  <CheckCircle className="w-4 h-4 text-green-200" />
                   <div>
-                    <h3 className="text-base font-black uppercase tracking-wider">
-                      Agro Order Fulfillment Center
+                    <h3 className="text-xs font-black uppercase tracking-wider">
+                      Fulfill Order
                     </h3>
-                    <p className="text-[10px] text-green-100 font-medium font-mono">
-                      ORDER ID: {confirmingOrder.id} • CLIENT NOTIFICATIONS DISPATCH
+                    <p className="text-[9px] text-green-100 font-medium font-mono">
+                      ID: {confirmingOrder.id}
                     </p>
                   </div>
                 </div>
-                {!isSimulatingSend && (
-                  <button
-                    onClick={() => {
-                      setConfirmingOrder(null);
-                      setSimulationStep(0);
-                    }}
-                    className="text-white/80 hover:text-white bg-green-900/30 hover:bg-green-950/40 p-1.5 rounded-full transition-colors cursor-pointer border-none"
-                    aria-label="Close modal"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                )}
+                <button
+                  onClick={() => {
+                    setConfirmingOrder(null);
+                  }}
+                  className="text-white/80 hover:text-white bg-green-900/30 hover:bg-green-950/40 p-1 rounded-full transition-colors cursor-pointer border-none"
+                  aria-label="Close modal"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
               </div>
 
-              {simulationStep === 0 && (
-                <form onSubmit={handleConfirmOrderSubmit} className="flex-1 overflow-y-auto flex flex-col">
-                  <div className="p-6 space-y-5 flex-1">
-                    {/* Setup Delivery Period */}
-                    <div className="bg-green-50/50 p-4 rounded-lg border border-green-200/50 space-y-3">
-                      <div className="flex items-center space-x-2">
-                        <Clock className="w-4 h-4 text-[#16A34A]" />
-                        <h4 className="font-extrabold text-gray-900 text-xs uppercase tracking-wide">
-                          Set Expected Delivery Timeframe *
-                        </h4>
-                      </div>
-                      
-                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                        {[
-                          '24-48 Hours (Express Nigeria)',
-                          '3-5 Business Days',
-                          '5-7 Working Days',
-                          'Same-Day Cooperative Pickup'
-                        ].map((preset) => (
-                          <button
-                            type="button"
-                            key={preset}
-                            onClick={() => setDeliveryTimeframe(preset)}
-                            className={`px-3 py-2 rounded text-[10px] font-bold text-center border cursor-pointer transition-all ${
-                              deliveryTimeframe === preset
-                                ? 'bg-[#16A34A] border-[#16A34A] text-white shadow-sm font-black'
-                                : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
-                            }`}
-                          >
-                            {preset}
-                          </button>
-                        ))}
-                      </div>
+              <form onSubmit={handleConfirmOrderSubmit} className="flex-1 flex flex-col">
+                <div className="p-5 space-y-4">
+                  {/* Summary */}
+                  <div className="bg-gray-50 p-3 rounded-lg border border-gray-100 text-xs space-y-1">
+                    <p className="text-gray-500 font-medium">Customer: <span className="font-bold text-gray-900">{confirmingOrder.customerName}</span></p>
+                    <p className="text-gray-500 font-medium">Total Value: <span className="font-bold text-green-700">{fmt(confirmingOrder.total)}</span></p>
+                    <p className="text-gray-500 font-medium">Destination: <span className="font-bold text-gray-900">{confirmingOrder.address}, {confirmingOrder.state}</span></p>
+                  </div>
 
-                      <div className="space-y-1">
-                        <label className="block text-[10px] font-bold text-gray-500 uppercase">Or Enter Custom Period</label>
-                        <input
-                          type="text"
-                          required
-                          value={deliveryTimeframe}
-                          onChange={(e) => setDeliveryTimeframe(e.target.value)}
-                          placeholder="e.g., 2-4 Hours, 10 Working Days..."
-                          className="w-full bg-white border border-gray-200 rounded px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-green-500 text-xs font-mono"
-                        />
-                      </div>
-
-                      <div className="space-y-1 mt-2">
-                        <label className="block text-[10px] font-bold text-gray-500 uppercase">Custom Message Notes / Delivery Instructions (Optional)</label>
-                        <input
-                          type="text"
-                          value={customNote}
-                          onChange={(e) => setCustomNote(e.target.value)}
-                          placeholder="e.g., Package ventilated to avoid spoilage. Call upon arrival."
-                          className="w-full bg-white border border-gray-200 rounded px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-green-500 text-xs font-mono"
-                        />
-                      </div>
+                  {/* Setup Delivery Period */}
+                  <div className="space-y-3">
+                    <div className="flex items-center space-x-1.5">
+                      <Clock className="w-3.5 h-3.5 text-[#16A34A]" />
+                      <h4 className="font-bold text-gray-700 text-[11px] uppercase tracking-wide">
+                        Expected Delivery Timeframe
+                      </h4>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-1.5">
+                      {[
+                        '24-48 Hours',
+                        '3-5 Business Days',
+                        '5-7 Working Days',
+                        'Cooperative Pickup'
+                      ].map((preset) => (
+                        <button
+                          type="button"
+                          key={preset}
+                          onClick={() => setDeliveryTimeframe(preset)}
+                          className={`px-2 py-1.5 rounded text-[9px] font-bold text-center border cursor-pointer transition-all ${
+                            deliveryTimeframe === preset
+                              ? 'bg-[#16A34A] border-[#16A34A] text-white'
+                              : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
+                          }`}
+                        >
+                          {preset}
+                        </button>
+                      ))}
                     </div>
 
-                    {/* Previews Grid */}
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                      {/* WhatsApp Simulation Mockup */}
-                      <div className="border border-gray-200 rounded-lg overflow-hidden flex flex-col bg-gray-50">
-                        <div className="bg-[#075E54] text-white p-2.5 flex items-center justify-between">
-                          <div className="flex items-center space-x-2">
-                            <div className="w-6 h-6 bg-green-500 rounded-full flex items-center justify-center font-black text-xs text-white">
-                              JA
-                            </div>
-                            <div>
-                              <p className="font-bold text-[10px] leading-tight">Julia Agro Notifications</p>
-                              <p className="text-[8px] text-green-100 opacity-90 leading-tight">verified business account</p>
-                            </div>
-                          </div>
-                          <Smartphone className="w-3.5 h-3.5 opacity-80" />
-                        </div>
-                        
-                        {/* WhatsApp Body Mockup */}
-                        <div className="p-4 bg-[#E5DDD5] min-h-[160px] flex-1 flex flex-col justify-end space-y-2">
-                          <div className="bg-white p-3 rounded-lg shadow-sm text-[10px] text-gray-800 max-w-[85%] self-start relative border-b border-gray-200">
-                            <p className="leading-normal font-mono whitespace-pre-line">
-                              Hi *{confirmingOrder.customerName}*! 🌾
-                              {"\n\n"}
-                              Your Julia Agro order *{confirmingOrder.id}* has been confirmed!
-                              {"\n\n"}
-                              🚚 *Expected Delivery:* {deliveryTimeframe}
-                              {"\n"}
-                              💰 *Amount:* {fmt(confirmingOrder.total)}
-                              {"\n"}
-                              📍 *Destination:* {confirmingOrder.address}, {confirmingOrder.state}
-                              {customNote && `\n\n📝 *Notes:* ${customNote}`}
-                              {"\n\n"}
-                              Thank you for supporting sustainable field transparency!
-                            </p>
-                            <span className="text-[7px] text-gray-400 absolute bottom-1 right-2 font-mono flex items-center space-x-0.5">
-                              <span>{new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                              <span className="text-[#34B7F1] font-black">✓✓</span>
-                            </span>
-                          </div>
-                          <p className="text-[8px] text-gray-400 text-center uppercase tracking-wider font-bold">whatsapp client preview</p>
-                        </div>
-                        
-                        <div className="bg-gray-100 px-3 py-1.5 text-[10px] text-gray-500 border-t border-gray-200 flex justify-between font-mono">
-                          <span>Phone: {confirmingOrder.phone}</span>
-                          <span className="text-green-700 font-extrabold flex items-center"><MessageSquare className="w-3 h-3 mr-1" /> Active API Gateway</span>
-                        </div>
-                      </div>
-
-                      {/* Email Simulation Mockup */}
-                      <div className="border border-gray-200 rounded-lg overflow-hidden flex flex-col bg-white">
-                        <div className="bg-gray-900 text-white p-2.5 flex items-center justify-between">
-                          <div className="flex items-center space-x-2">
-                            <Mail className="w-3.5 h-3.5 text-green-400 shrink-0" />
-                            <p className="font-bold text-[10px] leading-tight">SMTP Delivery Engine</p>
-                          </div>
-                          <span className="text-[8px] bg-green-900/50 text-green-300 px-1.5 py-0.5 rounded font-mono">SMTP.SECURE</span>
-                        </div>
-                        
-                        {/* Email Body Mockup */}
-                        <div className="p-4 flex-1 text-gray-700 text-[10px] space-y-3 bg-gray-50">
-                          <div className="bg-white border border-gray-200 rounded p-4 space-y-3 shadow-sm">
-                            <div className="border-b pb-2 flex justify-between items-center">
-                              <p className="font-extrabold text-[#16A34A] uppercase text-xs tracking-wider">JULIA AGRO COOPERATIVE</p>
-                              <span className="text-gray-400 font-mono text-[8px]">{confirmingOrder.id}</span>
-                            </div>
-                            
-                            <p className="font-bold text-gray-800 text-xs">Dear {confirmingOrder.customerName},</p>
-                            <p className="leading-relaxed">
-                              Your agricultural order <strong>{confirmingOrder.id}</strong> has been confirmed by our fulfillment team.
-                            </p>
-                            
-                            <div className="bg-green-50/50 border border-green-100 p-2.5 rounded font-mono text-[9px] text-green-900 space-y-1">
-                              <p><strong>• Estimated delivery period:</strong> {deliveryTimeframe}</p>
-                              <p><strong>• Destination:</strong> {confirmingOrder.address}, {confirmingOrder.state}</p>
-                              <p><strong>• Payment Gateway:</strong> {confirmingOrder.paymentMethod}</p>
-                              <p><strong>• Settled Amount:</strong> {fmt(confirmingOrder.total)}</p>
-                            </div>
-
-                            {customNote && (
-                              <p className="text-gray-500 italic bg-gray-100 p-2 rounded">
-                                <strong>Message from Agro-Hub:</strong> "{customNote}"
-                              </p>
-                            )}
-                            
-                            <p className="text-[8px] text-gray-400 border-t pt-2 text-center">
-                              You will receive an automated dispatch notification on WhatsApp when cooperative vehicles depart.
-                            </p>
-                          </div>
-                        </div>
-
-                        <div className="bg-gray-100 px-3 py-1.5 text-[10px] text-gray-500 border-t border-gray-200 flex justify-between font-mono">
-                          <span className="truncate">To: {confirmingOrder.customerEmail || `${confirmingOrder.phone}@julia-agro.com`}</span>
-                          <span className="text-green-700 font-bold">✓ SSL Handshake</span>
-                        </div>
-                      </div>
+                    <div className="space-y-1">
+                      <label className="block text-[9px] font-bold text-gray-400 uppercase">Or Enter Custom Period</label>
+                      <input
+                        type="text"
+                        required
+                        value={deliveryTimeframe}
+                        onChange={(e) => setDeliveryTimeframe(e.target.value)}
+                        placeholder="e.g., 2-4 Hours..."
+                        className="w-full bg-white border border-gray-200 rounded px-2.5 py-1 text-xs font-mono"
+                      />
                     </div>
-                  </div>
 
-                  {/* Actions footer */}
-                  <div className="bg-gray-50 px-6 py-4 flex items-center justify-between border-t border-gray-200 gap-3">
-                    <span className="text-[9px] text-gray-400 leading-normal max-w-sm">
-                      * Instantly broadcasts confirmation notifications via standard cooperative SMTP templates and Nigerian WhatsApp telecommunication servers.
-                    </span>
-                    <div className="flex space-x-2 shrink-0">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setConfirmingOrder(null);
-                          setSimulationStep(0);
-                        }}
-                        className="bg-white hover:bg-gray-50 text-gray-700 font-extrabold text-[10px] uppercase px-4 py-2 rounded border border-gray-200 shadow-sm cursor-pointer"
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        type="submit"
-                        className="bg-[#16A34A] hover:bg-green-700 text-white font-extrabold text-[10px] uppercase px-5 py-2 rounded shadow-md transition-all cursor-pointer border-none flex items-center space-x-1"
-                        id="btn-confirm-notifications-send"
-                      >
-                        <Send className="w-3.5 h-3.5" />
-                        <span>Confirm Order & Notify Client</span>
-                      </button>
+                    <div className="space-y-1">
+                      <label className="block text-[9px] font-bold text-gray-400 uppercase">Fulfillment Notes (Optional)</label>
+                      <input
+                        type="text"
+                        value={customNote}
+                        onChange={(e) => setCustomNote(e.target.value)}
+                        placeholder="e.g., Call upon arrival."
+                        className="w-full bg-white border border-gray-200 rounded px-2.5 py-1 text-xs font-mono"
+                      />
                     </div>
-                  </div>
-                </form>
-              )}
-
-              {simulationStep === 1 && (
-                <div className="p-12 text-center flex flex-col items-center justify-center space-y-6">
-                  {/* Beautiful customized loading wheel */}
-                  <div className="relative w-16 h-16">
-                    <div className="absolute inset-0 rounded-full border-4 border-gray-200 animate-pulse"></div>
-                    <div className="absolute inset-0 rounded-full border-4 border-transparent border-t-[#16A34A] border-r-[#16A34A] animate-spin"></div>
-                  </div>
-                  
-                  <div className="space-y-2 max-w-sm">
-                    <h4 className="font-extrabold text-gray-900 text-sm uppercase tracking-wider">
-                      Fulfilling Agro Request
-                    </h4>
-                    <p className="text-[10px] text-gray-400 font-mono">
-                      Connecting to SMS, SMTP, and WhatsApp service routers...
-                    </p>
-                  </div>
-
-                  <div className="bg-gray-950 text-[#3bb75e] p-3 rounded border border-gray-800 text-[10px] font-mono text-left w-full max-w-md space-y-1 shadow-inner h-24 overflow-y-auto leading-normal">
-                    <p className="text-gray-500">// COMMENCING SECURITY BROADCAST CHANNEL</p>
-                    <p className="animate-pulse">✓ IP lookup completed: 0.0.0.0 (Port 3000 Localhost)</p>
-                    <p className="animate-pulse">✓ Initializing SSL handshake with Lagos Telco Gateways...</p>
-                    <p className="animate-pulse">✓ Dispatching payload to {confirmingOrder.phone} via WhatsApp...</p>
-                    <p className="animate-pulse">✓ Queueing SMTP payload to {confirmingOrder.customerEmail || `${confirmingOrder.phone}@julia-agro.com`}...</p>
                   </div>
                 </div>
-              )}
 
-              {simulationStep === 2 && (
-                <div className="flex-1 flex flex-col justify-between overflow-hidden">
-                  <div className="p-6 space-y-5 overflow-y-auto">
-                    <div className="text-center py-4 space-y-3 max-w-md mx-auto">
-                      <div className="w-12 h-12 bg-green-50 rounded-full flex items-center justify-center mx-auto text-[#16A34A] border border-green-100">
-                        <Check className="w-6 h-6 stroke-[3px]" />
-                      </div>
-                      <div>
-                        <h4 className="font-black text-gray-900 uppercase text-sm tracking-wider">
-                          Fulfillment Broadcast Complete!
-                        </h4>
-                        <p className="text-[10px] text-gray-400 mt-1">
-                          Client notifications dispatched successfully. Please find the receipt records for your logs below.
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {/* WhatsApp Receipt Card */}
-                      <div className="bg-[#E5DDD5] p-3 rounded-lg border border-gray-200/50 space-y-2">
-                        <p className="text-[8px] font-bold text-[#075E54] uppercase tracking-wider bg-white/80 px-2 py-0.5 rounded inline-block">📱 Sent WhatsApp message</p>
-                        <div className="bg-white p-3 rounded-lg shadow-sm text-[9px] text-gray-700 font-mono whitespace-pre-line">
-                          Hi *{confirmingOrder.customerName}*! 🌾
-                          {"\n\n"}
-                          Your Julia Agro order *{confirmingOrder.id}* has been confirmed!
-                          {"\n\n"}
-                          🚚 *Expected Delivery:* {deliveryTimeframe}
-                          {"\n"}
-                          💰 *Amount:* {fmt(confirmingOrder.total)}
-                          {"\n"}
-                          📍 *Destination:* {confirmingOrder.address}, {confirmingOrder.state}
-                          {customNote && `\n\n📝 *Notes:* ${customNote}`}
-                        </div>
-                        <div className="flex justify-between items-center text-[8px] text-gray-500 font-mono px-1">
-                          <span>To: {confirmingOrder.phone}</span>
-                          <span className="text-[#34B7F1] font-bold">✓✓ DELIVERED</span>
-                        </div>
-                      </div>
-
-                      {/* Email Receipt Card */}
-                      <div className="bg-gray-50 p-3 rounded-lg border border-gray-200/50 space-y-2">
-                        <p className="text-[8px] font-bold text-gray-800 uppercase tracking-wider bg-white px-2 py-0.5 rounded inline-block border">📧 Sent Transactional Email</p>
-                        <div className="bg-white p-3 rounded-lg shadow-sm text-[9px] text-gray-700 font-mono space-y-2">
-                          <p className="font-bold text-green-700 border-b pb-1">JULIA AGRO ORDER CONFIRMATION</p>
-                          <p>Dear {confirmingOrder.customerName},</p>
-                          <p>Order {confirmingOrder.id} has been confirmed. Delivery expected within {deliveryTimeframe}.</p>
-                          <p className="text-[8px] text-gray-400">Sent via Secure Cooperative SMTP Server.</p>
-                        </div>
-                        <div className="flex justify-between items-center text-[8px] text-gray-500 font-mono px-1">
-                          <span>To: {confirmingOrder.customerEmail || `${confirmingOrder.phone}@julia-agro.com`}</span>
-                          <span className="text-green-700 font-bold">✓ SENT (250 OK)</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="bg-gray-50 px-6 py-4 flex items-center justify-between border-t border-gray-200">
-                    <span className="text-[9px] text-gray-400 font-mono">
-                      Broadcast session ID: live_smtp_wa_proc_session_{Date.now().toString().slice(6)}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setConfirmingOrder(null);
-                        setSimulationStep(0);
-                        setCustomNote('');
-                      }}
-                      className="bg-gray-900 hover:bg-black text-white font-extrabold text-[10px] uppercase px-6 py-2.5 rounded shadow transition-all cursor-pointer border-none"
-                    >
-                      Dismiss Receipt
-                    </button>
-                  </div>
+                {/* Actions footer */}
+                <div className="bg-gray-50 px-5 py-3.5 flex items-center justify-end border-t border-gray-150 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setConfirmingOrder(null);
+                    }}
+                    className="bg-white hover:bg-gray-50 text-gray-700 font-bold text-[10px] uppercase px-3.5 py-1.5 rounded border border-gray-200 shadow-sm cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="bg-[#16A34A] hover:bg-green-700 text-white font-bold text-[10px] uppercase px-4 py-1.5 rounded shadow-sm cursor-pointer border-none flex items-center space-x-1"
+                  >
+                    <Send className="w-3 h-3" />
+                    <span>Confirm & Ship Order</span>
+                  </button>
                 </div>
-              )}
+              </form>
             </div>
           </div>
         </div>

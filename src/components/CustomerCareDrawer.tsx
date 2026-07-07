@@ -32,7 +32,6 @@ export const CustomerCareDrawer: React.FC = () => {
     setIsCustomerCareOpen,
     setIsCustomerAuthOpen,
     currentUser,
-    loginUser,
     showToast
   } = useStore();
 
@@ -46,9 +45,7 @@ export const CustomerCareDrawer: React.FC = () => {
   ]);
   const [inputVal, setInputVal] = useState('');
   
-  // Login form if user wants to log in from here
-  const [careName, setCareName] = useState('');
-  const [careEmail, setCareEmail] = useState('');
+
 
   // Dispute Form
   const [disputeType, setDisputeType] = useState('Quality Mismatch');
@@ -185,57 +182,21 @@ export const CustomerCareDrawer: React.FC = () => {
               </p>
             </div>
 
-            <form onSubmit={(e) => {
-              e.preventDefault();
-              if (!careName.trim() || !careEmail.trim()) {
-                showToast('Please enter your details to sign in.', 'warning');
-                return;
-              }
-              loginUser(careName, careEmail, false);
-              showToast(`Welcome! Helpdesk access granted.`, 'success');
-            }} className="bg-gray-50 p-4 rounded-lg border border-gray-200 text-left space-y-3">
-              <div>
-                <label className="block text-[10px] text-gray-500 font-bold mb-1 uppercase">Full Name</label>
-                <input
-                  type="text"
-                  required
-                  value={careName}
-                  onChange={e => setCareName(e.target.value)}
-                  placeholder="Josiah Treasure"
-                  className="w-full bg-white border border-gray-200 rounded px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-green-500"
-                />
-              </div>
-              <div>
-                <label className="block text-[10px] text-gray-500 font-bold mb-1 uppercase">Email Address</label>
-                <input
-                  type="email"
-                  required
-                  value={careEmail}
-                  onChange={e => setCareEmail(e.target.value)}
-                  placeholder="josiah@example.com"
-                  className="w-full bg-white border border-gray-200 rounded px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-green-500 font-mono"
-                />
-              </div>
+            <div className="space-y-3">
               <button
-                type="submit"
-                className="w-full bg-[#16A34A] hover:bg-[#15803D] text-white text-xs font-bold py-2 rounded transition-colors border-none cursor-pointer"
+                type="button"
+                onClick={() => {
+                  setIsCustomerCareOpen(false);
+                  setIsCustomerAuthOpen(true);
+                }}
+                className="w-full bg-[#16A34A] hover:bg-[#15803D] text-white font-extrabold uppercase py-3 rounded shadow-md transition-colors cursor-pointer text-xs flex items-center justify-center space-x-1.5"
               >
-                Quick Sign In
+                <span>Customer Log In / Sign Up</span>
               </button>
-              <div className="text-center pt-2 border-t border-gray-200/50 mt-2">
-                <p className="text-[10px] text-gray-400 mb-1">New to Jumia Julia Agro?</p>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsCustomerCareOpen(false);
-                    setIsCustomerAuthOpen(true);
-                  }}
-                  className="text-xs text-[#16A34A] hover:underline font-bold bg-transparent border-none cursor-pointer"
-                >
-                  Create Verified Account with Email OTP ✓
-                </button>
-              </div>
-            </form>
+              <p className="text-[10px] text-gray-400">
+                You must sign in as a customer to access customer care. Administrators cannot log into Customer Care using admin credentials.
+              </p>
+            </div>
           </div>
         ) : (
           <>

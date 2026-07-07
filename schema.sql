@@ -51,6 +51,19 @@ CREATE TABLE IF NOT EXISTS public.order_items (
 -- ROW LEVEL SECURITY (RLS) POLICIES
 -- =======================================================
 
+-- Helper function to fetch the current user's role securely from profiles.
+-- Marked as SECURITY DEFINER so that it bypasses RLS on the profiles table,
+-- preventing any infinite recursion when evaluating profile policies.
+CREATE OR REPLACE FUNCTION public.get_my_role()
+RETURNS TEXT SECURITY DEFINER AS $$
+BEGIN
+  RETURN (
+    SELECT role FROM public.profiles
+    WHERE id = auth.uid()
+  );
+END;
+$$ LANGUAGE plpgsql;
+
 ALTER TABLE public.ip_bans ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.products ENABLE ROW LEVEL SECURITY;
@@ -60,19 +73,28 @@ ALTER TABLE public.order_items ENABLE ROW LEVEL SECURITY;
 -- IP Bans Policies
 CREATE POLICY "Admins can view IP bans" 
 ON public.ip_bans FOR SELECT 
-USING (EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin'));
+USING (public.get_my_role() = 'admin');
 
 CREATE POLICY "Admins can manage IP bans" 
 ON public.ip_bans FOR ALL 
-USING (EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin'));
+USING (public.get_my_role() = 'admin');
 
 -- Profiles Policies
-CREATE POLICY "Public profiles are viewable by everyone" 
-ON public.profiles FOR SELECT USING (true);
+CREATE POLICY "Users can view their own profile" 
+ON public.profiles FOR SELECT 
+USING (auth.uid() = id);
+
+CREATE POLICY "Admins can view all profiles" 
+ON public.profiles FOR SELECT 
+USING (public.get_my_role() = 'admin');
 
 CREATE POLICY "Users can update their own profile" 
 ON public.profiles FOR UPDATE 
 USING (auth.uid() = id);
+
+CREATE POLICY "Admins can update any profile" 
+ON public.profiles FOR UPDATE 
+USING (public.get_my_role() = 'admin');
 
 -- Products Policies
 CREATE POLICY "Products are viewable by everyone" 
@@ -80,16 +102,16 @@ ON public.products FOR SELECT USING (true);
 
 CREATE POLICY "Sellers can insert products" 
 ON public.products FOR INSERT 
-WITH CHECK (EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role IN ('seller', 'admin')));
+WITH CHECK (public.get_my_role() IN ('seller', 'admin'));
 
 CREATE POLICY "Sellers can update their own products" 
 ON public.products FOR UPDATE 
-USING (seller_id = auth.uid() OR EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin'));
+USING (seller_id = auth.uid() OR public.get_my_role() = 'admin');
 
 -- Orders Policies
 CREATE POLICY "Orders are viewable by owner or admin" 
 ON public.orders FOR SELECT 
-USING (auth.uid() = customer_id OR EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin'));
+USING (auth.uid() = customer_id OR public.get_my_role() = 'admin');
 
 CREATE POLICY "Customers can insert their own orders" 
 ON public.orders FOR INSERT 
@@ -98,10 +120,13 @@ WITH CHECK (auth.uid() = customer_id);
 -- Order Items Policies
 CREATE POLICY "Order items viewable by order owner or admin" 
 ON public.order_items FOR SELECT 
-USING (EXISTS (
-  SELECT 1 FROM public.orders 
-  WHERE id = order_id AND (customer_id = auth.uid() OR EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin'))
-));
+USING (
+  EXISTS (
+    SELECT 1 FROM public.orders 
+    WHERE id = order_id AND customer_id = auth.uid()
+  ) OR 
+  public.get_my_role() = 'admin'
+);
 
 -- =======================================================
 -- TRIGGERS & FUNCTIONS FOR IP ENFORCEMENT & SIGNUP

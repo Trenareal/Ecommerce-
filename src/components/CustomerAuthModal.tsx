@@ -10,7 +10,8 @@ export const CustomerAuthModal: React.FC = () => {
     registerCustomer,
     resetCustomerPassword,
     showToast,
-    customers
+    customers,
+    adminUsers
   } = useStore();
 
   const [mode, setMode] = useState<'login' | 'register' | 'forgot' | 'otp' | 'reset_otp'>('login');
@@ -78,6 +79,13 @@ export const CustomerAuthModal: React.FC = () => {
       return;
     }
 
+    // Check if email is an administrator
+    const isAdmin = adminUsers.some(a => a.email.toLowerCase() === email.toLowerCase());
+    if (isAdmin) {
+      showToast('This email is registered as an Administrator. Admins cannot create Customer accounts.', 'warning');
+      return;
+    }
+
     // Check if user already exists
     const exists = customers.some(c => c.email.toLowerCase() === email.toLowerCase());
     if (exists) {
@@ -121,6 +129,12 @@ export const CustomerAuthModal: React.FC = () => {
 
   const handleSendForgotPasswordOtp = (e: React.FormEvent) => {
     e.preventDefault();
+
+    const isAdmin = adminUsers.some(a => a.email.toLowerCase() === email.toLowerCase());
+    if (isAdmin) {
+      showToast('This email is registered as an Administrator. Admins cannot recover password here.', 'warning');
+      return;
+    }
 
     const exists = customers.some(c => c.email.toLowerCase() === email.toLowerCase());
     if (!exists) {
