@@ -918,6 +918,25 @@ export const CustomerAccountModal: React.FC = () => {
                           <div className="flex items-center space-x-2.5">
                             <span className="text-[11px] text-gray-500 font-semibold font-mono">Total: <strong className="text-gray-900">{formatPrice(order.total)}</strong></span>
                             
+                            {order.paymentStatus && (
+                              <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full tracking-wider flex items-center space-x-1 ${
+                                order.paymentStatus === 'Paid' 
+                                  ? 'bg-green-100 text-[#16A34A] border border-green-200' 
+                                  : order.paymentStatus === 'Awaiting Verification' 
+                                    ? 'bg-amber-100 text-amber-700 border border-amber-200 animate-pulse'
+                                    : 'bg-gray-100 text-gray-500 border border-gray-200'
+                              }`}>
+                                <span className="inline-block w-1.5 h-1.5 rounded-full bg-current"></span>
+                                <span>
+                                  {order.paymentStatus === 'Paid' 
+                                    ? 'Payment Completed' 
+                                    : order.paymentStatus === 'Awaiting Verification' 
+                                      ? 'Payment Awaiting' 
+                                      : 'Payment Unpaid'}
+                                </span>
+                              </span>
+                            )}
+
                             <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full tracking-wider flex items-center space-x-1 ${
                               order.status === 'Delivered' 
                                 ? 'bg-green-100 text-[#16A34A]' 
@@ -945,6 +964,31 @@ export const CustomerAccountModal: React.FC = () => {
                               <span>GPS Telemetry Synced</span>
                             </span>
                           </div>
+
+                          {/* Payment Alert Banner */}
+                          {order.paymentStatus === 'Awaiting Verification' && (
+                            <div className="mb-4 bg-amber-50 border border-amber-200 rounded-md p-3 text-[11px] text-amber-800 flex items-start space-x-2 animate-pulse">
+                              <span className="text-sm shrink-0">⏳</span>
+                              <div>
+                                <p className="font-extrabold uppercase tracking-wide text-[10px]">Payment Verification Pending</p>
+                                <p className="text-[10px] text-amber-700/95 mt-0.5 leading-relaxed">
+                                  We have received your payment instruction. Julia Agro administrative nodes are manually verifying the transaction ledger. Your order will dispatch immediately upon confirmation.
+                                </p>
+                              </div>
+                            </div>
+                          )}
+
+                          {order.paymentStatus === 'Paid' && (
+                            <div className="mb-4 bg-green-50 border border-green-200 rounded-md p-3 text-[11px] text-green-800 flex items-start space-x-2">
+                              <span className="text-sm shrink-0">✅</span>
+                              <div>
+                                <p className="font-extrabold uppercase tracking-wide text-[10px]">Payment Completed (Escrow Secured)</p>
+                                <p className="text-[10px] text-green-700/95 mt-0.5 leading-relaxed">
+                                  Your payment has been successfully verified and confirmed by Julia Agro. The escrow funds have been safely captured and delivery is now priority processed.
+                                </p>
+                              </div>
+                            </div>
+                          )}
 
                           <div className="relative py-2">
                             {/* Desktop Connective Progress Line */}

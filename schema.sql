@@ -14,6 +14,9 @@ CREATE TABLE IF NOT EXISTS public.ip_bans (
 CREATE TABLE IF NOT EXISTS public.profiles (
   id UUID REFERENCES auth.users ON DELETE CASCADE NOT NULL PRIMARY KEY,
   email TEXT NOT NULL,
+  full_name TEXT,
+  phone TEXT,
+  location TEXT,
   role TEXT NOT NULL DEFAULT 'customer' CHECK (role IN ('customer', 'seller', 'admin')),
   ip_address TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
@@ -163,10 +166,13 @@ BEGIN
   END IF;
 
   -- Create corresponding public profile
-  INSERT INTO public.profiles (id, email, role, ip_address)
+  INSERT INTO public.profiles (id, email, full_name, phone, location, role, ip_address)
   VALUES (
     NEW.id,
     NEW.email,
+    NEW.raw_user_meta_data->>'full_name',
+    NEW.raw_user_meta_data->>'phone',
+    NEW.raw_user_meta_data->>'location',
     COALESCE(NEW.raw_user_meta_data->>'role', 'customer'),
     user_ip
   );

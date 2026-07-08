@@ -49,7 +49,11 @@ export const SellerDashboard: React.FC = () => {
     updateStoreSettings,
     sellerTab: activeTab,
     setSellerTab: setActiveTab,
-    clearAllOrders
+    clearAllOrders,
+    adminEmails,
+    confirmOrderPayment,
+    markEmailAsRead,
+    deleteEmail
   } = useStore();
 
   // Admin Login States
@@ -109,6 +113,9 @@ export const SellerDashboard: React.FC = () => {
   const [custPhone, setCustPhone] = useState('');
   const [custLocation, setCustLocation] = useState('');
 
+  // Mailbox tab state
+  const [selectedEmailId, setSelectedEmailId] = useState<string | null>(null);
+
   // Discounts tab state
   const [showAddPromo, setShowAddPromo] = useState(false);
   const [promoTitle, setPromoTitle] = useState('');
@@ -131,6 +138,10 @@ export const SellerDashboard: React.FC = () => {
   const [settingRate, setSettingRate] = useState(storeSettings?.nairaToUsdRate?.toString() || '1500');
   const [settingFee, setSettingFee] = useState(storeSettings?.defaultDeliveryFee?.toString() || '1500');
   const [settingEscrow, setSettingEscrow] = useState(storeSettings?.escrowProtectionFee?.toString() || '500');
+  const [settingEmailjsServiceId, setSettingEmailjsServiceId] = useState(storeSettings?.emailjsServiceId || '');
+  const [settingEmailjsTemplateId, setSettingEmailjsTemplateId] = useState(storeSettings?.emailjsTemplateId || '');
+  const [settingEmailjsPublicKey, setSettingEmailjsPublicKey] = useState(storeSettings?.emailjsPublicKey || '');
+  const [settingEmailjsEnabled, setSettingEmailjsEnabled] = useState(storeSettings?.emailjsEnabled || false);
 
   // Reports tab state
   const [reportType, setReportType] = useState<'sales' | 'customers' | 'inventory'>('sales');
@@ -455,7 +466,11 @@ export const SellerDashboard: React.FC = () => {
       contactPhone: settingPhone,
       nairaToUsdRate: rateNum,
       defaultDeliveryFee: feeNum,
-      escrowProtectionFee: escrowNum
+      escrowProtectionFee: escrowNum,
+      emailjsServiceId: settingEmailjsServiceId,
+      emailjsTemplateId: settingEmailjsTemplateId,
+      emailjsPublicKey: settingEmailjsPublicKey,
+      emailjsEnabled: settingEmailjsEnabled
     });
   };
 
@@ -717,6 +732,22 @@ export const SellerDashboard: React.FC = () => {
             {orders.filter(o => o.status === 'Pending').length > 0 && (
               <span className="absolute top-1.5 right-1.5 bg-red-500 text-white text-[9px] w-4 h-4 rounded-full flex items-center justify-center font-bold">
                 {orders.filter(o => o.status === 'Pending').length}
+              </span>
+            )}
+          </button>
+
+          <button
+            onClick={() => setActiveTab('emails')}
+            className={`flex items-center space-x-2.5 px-4 py-3 rounded-md text-xs font-bold uppercase tracking-wider transition-all relative whitespace-nowrap cursor-pointer shrink-0 ${
+              activeTab === 'emails' ? 'bg-[#16A34A] text-white shadow-md' : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200'
+            }`}
+            id="btn-admin-mailbox"
+          >
+            <Mail className="w-4 h-4" />
+            <span>Admin Mailbox</span>
+            {adminEmails.filter(e => !e.isRead).length > 0 && (
+              <span className="absolute top-1.5 right-1.5 bg-amber-500 text-white text-[9px] w-4 h-4 rounded-full flex items-center justify-center font-bold animate-pulse">
+                {adminEmails.filter(e => !e.isRead).length}
               </span>
             )}
           </button>
@@ -2346,6 +2377,89 @@ export const SellerDashboard: React.FC = () => {
                 </div>
               </div>
 
+              {/* SECTION C: GMAIL INTEGRATION via EmailJS */}
+              <div className="border-t border-gray-150 pt-5 space-y-4 text-xs">
+                <div>
+                  <h4 className="font-extrabold text-gray-900 uppercase text-[10px] tracking-wider text-gray-500 flex items-center space-x-1.5">
+                    <span className="text-[#16A34A]">✉️</span>
+                    <span>Gmail Integration (via EmailJS)</span>
+                  </h4>
+                  <p className="text-[10px] text-gray-400 mt-0.5">
+                    Forward escrow alerts and payment notifications directly to your Gmail account (<strong className="text-gray-700">josiahtreasure1424@gmail.com</strong>).
+                  </p>
+                </div>
+
+                <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <span className="font-bold text-gray-800 block text-[11px]">Enable Live Gmail Alerts</span>
+                      <span className="text-[9px] text-gray-400">Trigger real emails for online checkouts and bank transfer notices.</span>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={settingEmailjsEnabled}
+                        onChange={e => setSettingEmailjsEnabled(e.target.checked)}
+                        className="sr-only peer"
+                      />
+                      <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#16A34A]"></div>
+                    </label>
+                  </div>
+
+                  {settingEmailjsEnabled && (
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 border-t border-gray-200 pt-4 animate-fade-in">
+                      <div>
+                        <label className="block text-gray-600 font-bold mb-1">EmailJS Service ID *</label>
+                        <input
+                          type="text"
+                          required={settingEmailjsEnabled}
+                          value={settingEmailjsServiceId}
+                          onChange={e => setSettingEmailjsServiceId(e.target.value)}
+                          placeholder="e.g. service_xxxxxx"
+                          className="w-full bg-white border border-gray-200 rounded px-3 py-1.5 focus:outline-none font-mono"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-gray-600 font-bold mb-1">EmailJS Template ID *</label>
+                        <input
+                          type="text"
+                          required={settingEmailjsEnabled}
+                          value={settingEmailjsTemplateId}
+                          onChange={e => setSettingEmailjsTemplateId(e.target.value)}
+                          placeholder="e.g. template_xxxxxx"
+                          className="w-full bg-white border border-gray-200 rounded px-3 py-1.5 focus:outline-none font-mono"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-gray-600 font-bold mb-1">EmailJS Public Key *</label>
+                        <input
+                          type="text"
+                          required={settingEmailjsEnabled}
+                          value={settingEmailjsPublicKey}
+                          onChange={e => setSettingEmailjsPublicKey(e.target.value)}
+                          placeholder="e.g. public_xxxxxx"
+                          className="w-full bg-white border border-gray-200 rounded px-3 py-1.5 focus:outline-none font-mono"
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="bg-amber-50/50 border border-amber-100 rounded-md p-3 text-[10px] text-amber-800 space-y-1">
+                    <p className="font-extrabold uppercase tracking-wide text-[9px] flex items-center space-x-1">
+                      <span>💡</span>
+                      <span>How to set up free Gmail delivery (Option B):</span>
+                    </p>
+                    <ol className="list-decimal pl-4 space-y-1 text-amber-700/95 leading-relaxed">
+                      <li>Go to <a href="https://www.emailjs.com" target="_blank" rel="noreferrer" className="underline font-bold hover:text-amber-900">EmailJS.com</a> and sign up for a free account.</li>
+                      <li>In the EmailJS dashboard, add a <strong>Gmail</strong> service under "Email Services" and authorize your admin Gmail. Copy your <strong className="font-mono text-[9px]">Service ID</strong>.</li>
+                      <li>Create an email template under "Email Templates". In your template content, you can use placeholders like: <code className="bg-amber-100 px-1 py-0.2 rounded font-mono text-[9px]">{"{{subject}}"}</code> and <code className="bg-amber-100 px-1 py-0.2 rounded font-mono text-[9px]">{"{{message}}"}</code>. Copy your <strong className="font-mono text-[9px]">Template ID</strong>.</li>
+                      <li>Go to "Account" then "Public Key" to retrieve your API <strong className="font-mono text-[9px]">Public Key</strong>.</li>
+                      <li>Paste the keys above, check "Enable Live Gmail Alerts", and click <strong>Update parameters</strong>. Your escrow notifications will land instantly in your Gmail inbox!</li>
+                    </ol>
+                  </div>
+                </div>
+              </div>
+
               <div className="border-t border-gray-200 pt-4 flex justify-end space-x-2.5">
                 <button
                   type="button"
@@ -2356,6 +2470,10 @@ export const SellerDashboard: React.FC = () => {
                     setSettingRate(storeSettings?.nairaToUsdRate?.toString() || '1500');
                     setSettingFee(storeSettings?.defaultDeliveryFee?.toString() || '1500');
                     setSettingEscrow(storeSettings?.escrowProtectionFee?.toString() || '500');
+                    setSettingEmailjsServiceId(storeSettings?.emailjsServiceId || '');
+                    setSettingEmailjsTemplateId(storeSettings?.emailjsTemplateId || '');
+                    setSettingEmailjsPublicKey(storeSettings?.emailjsPublicKey || '');
+                    setSettingEmailjsEnabled(storeSettings?.emailjsEnabled || false);
                     showToast('Reset modifications.', 'info');
                   }}
                   className="border border-gray-300 text-gray-600 font-bold px-4 py-1.5 rounded text-xs transition-colors cursor-pointer"
@@ -2414,13 +2532,35 @@ export const SellerDashboard: React.FC = () => {
                           </div>
 
                           <div className="flex items-center space-x-3">
+                            {/* Payment Status Action or Badge */}
+                            {ord.paymentStatus === 'Awaiting Verification' ? (
+                              <button
+                                type="button"
+                                onClick={() => confirmOrderPayment(ord.id)}
+                                className="bg-amber-500 hover:bg-amber-600 text-white font-extrabold text-[10px] px-2.5 py-1.5 rounded flex items-center space-x-1 uppercase tracking-wide cursor-pointer shadow-sm active:scale-[0.98] transition-transform border-none"
+                                id={`btn-confirm-payment-${ord.id}`}
+                              >
+                                <CheckCircle className="w-3.5 h-3.5 shrink-0" />
+                                <span>Confirm Payment</span>
+                              </button>
+                            ) : ord.paymentStatus === 'Paid' ? (
+                              <span className="bg-green-100 text-[#16A34A] font-extrabold text-[9px] px-2.5 py-1.5 rounded uppercase tracking-wide border border-green-200 flex items-center space-x-1">
+                                <CheckCircle className="w-3.5 h-3.5 shrink-0 text-[#16A34A]" />
+                                <span>Payment Completed</span>
+                              </span>
+                            ) : (
+                              <span className="bg-gray-100 text-gray-500 font-extrabold text-[9px] px-2.5 py-1.5 rounded uppercase tracking-wide border border-gray-200 flex items-center space-x-1">
+                                <span>Unpaid</span>
+                              </span>
+                            )}
+
                             {ord.status === 'Pending' && (
                               <button
                                 type="button"
                                 onClick={() => {
                                   setConfirmingOrder(ord);
                                 }}
-                                className="bg-[#16A34A] hover:bg-green-700 text-white font-extrabold text-[10px] px-2.5 py-1 rounded flex items-center space-x-1 uppercase tracking-wide cursor-pointer shadow-sm active:scale-[0.98] transition-transform border-none"
+                                className="bg-[#16A34A] hover:bg-green-700 text-white font-extrabold text-[10px] px-2.5 py-1.5 rounded flex items-center space-x-1 uppercase tracking-wide cursor-pointer shadow-sm active:scale-[0.98] transition-transform border-none"
                                 id={`btn-confirm-${ord.id}`}
                               >
                                 <CheckCircle className="w-3.5 h-3.5 shrink-0" />
@@ -2495,7 +2635,10 @@ export const SellerDashboard: React.FC = () => {
                                 )}
                               </p>
                             </div>
-                            <p className="text-[10px] text-gray-400 mt-2 border-t pt-1">Paid via: <span className="font-semibold text-gray-700">{ord.paymentMethod}</span></p>
+                            <div className="text-[10px] text-gray-400 mt-2 border-t pt-1.5 flex flex-col space-y-1">
+                              <p>Paid via: <span className="font-semibold text-gray-700">{ord.paymentMethod}</span></p>
+                              <p>Payment Status: <span className={`font-bold uppercase ${ord.paymentStatus === 'Paid' ? 'text-[#16A34A]' : ord.paymentStatus === 'Awaiting Verification' ? 'text-amber-500 animate-pulse' : 'text-gray-500'}`}>{ord.paymentStatus || 'Unpaid'}</span></p>
+                            </div>
                           </div>
                         </div>
 
@@ -2510,6 +2653,190 @@ export const SellerDashboard: React.FC = () => {
                 </div>
               )}
 
+            </div>
+          )}
+
+          {/* ADMIN MAILBOX & VERIFICATIONS TAB */}
+          {activeTab === 'emails' && (
+            <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden animate-fade-in flex flex-col h-[650px]" id="admin-mailbox-view">
+              {/* Mailbox Header */}
+              <div className="bg-gray-50 border-b border-gray-200 p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shrink-0">
+                <div>
+                  <h3 className="text-sm font-black text-gray-900 uppercase tracking-wider flex items-center space-x-2">
+                    <Mail className="w-4 h-4 text-[#16A34A]" />
+                    <span>Admin Secure Inbox</span>
+                  </h3>
+                  <p className="text-[10px] text-gray-500 mt-0.5">
+                    Live escrow payment notices, customer transfer confirmations, and transaction alerts.
+                  </p>
+                </div>
+                <div className="flex items-center space-x-2 self-stretch sm:self-auto">
+                  <span className="text-[10px] bg-amber-50 text-amber-700 border border-amber-200 px-2 py-1 rounded font-bold uppercase tracking-wider">
+                    {adminEmails.filter(e => !e.isRead).length} Unread
+                  </span>
+                  <span className="text-[10px] bg-gray-100 text-gray-600 px-2 py-1 rounded font-bold font-mono">
+                    Total: {adminEmails.length}
+                  </span>
+                </div>
+              </div>
+
+              {/* Mailbox Body Split-Screen */}
+              <div className="flex flex-1 overflow-hidden min-h-0 divide-x divide-gray-200">
+                {/* Left Side: Email List */}
+                <div className="w-full md:w-5/12 overflow-y-auto flex flex-col divide-y divide-gray-100 scrollbar-thin">
+                  {adminEmails.length === 0 ? (
+                    <div className="p-8 text-center text-gray-400 my-auto flex flex-col items-center">
+                      <Mail className="w-10 h-10 text-gray-300 mb-2" />
+                      <p className="text-xs font-bold">Mailbox is empty.</p>
+                      <p className="text-[10px] text-gray-400 mt-1">No payment verifications or alerts received yet.</p>
+                    </div>
+                  ) : (
+                    adminEmails.map((email) => {
+                      const isSelected = selectedEmailId === email.id || (!selectedEmailId && adminEmails[0]?.id === email.id);
+                      return (
+                        <div
+                          key={email.id}
+                          onClick={() => {
+                            setSelectedEmailId(email.id);
+                            markEmailAsRead(email.id);
+                          }}
+                          className={`p-3.5 text-left cursor-pointer transition-all hover:bg-gray-50 flex flex-col space-y-1 relative ${
+                            isSelected ? 'bg-green-50/40 border-l-4 border-l-[#16A34A] pl-2.5' : 'border-l-4 border-l-transparent'
+                          }`}
+                        >
+                          {/* Unread indicator dot */}
+                          {!email.isRead && (
+                            <span className="absolute top-4 right-4 w-2.5 h-2.5 rounded-full bg-amber-500 ring-4 ring-amber-50" />
+                          )}
+
+                          <div className="flex justify-between items-start pr-4">
+                            <span className="text-[11px] font-black text-gray-800 tracking-tight truncate max-w-[150px]">
+                              {email.sender.split('@')[0].toUpperCase()}
+                            </span>
+                            <span className="text-[9px] font-medium text-gray-400 whitespace-nowrap font-mono">
+                              {new Date(email.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                          </div>
+
+                          <h4 className={`text-xs tracking-tight truncate pr-4 ${!email.isRead ? 'font-extrabold text-gray-900' : 'text-gray-700'}`}>
+                            {email.subject}
+                          </h4>
+
+                          <p className="text-[10px] text-gray-400 line-clamp-2 pr-2">
+                            {email.body}
+                          </p>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+
+                {/* Right Side: Email Content Details */}
+                <div className="hidden md:flex md:w-7/12 overflow-y-auto flex-col bg-gray-50/40 p-5 scrollbar-thin">
+                  {(() => {
+                    const activeEmail = adminEmails.find(e => e.id === (selectedEmailId || adminEmails[0]?.id));
+                    if (!activeEmail) {
+                      return (
+                        <div className="m-auto text-center text-gray-400 flex flex-col items-center p-6">
+                          <Mail className="w-12 h-12 text-gray-200 mb-3" />
+                          <h4 className="text-xs font-bold text-gray-700">No Email Selected</h4>
+                          <p className="text-[10px] text-gray-400 mt-1">Select an email from the list on the left to read and verify payments.</p>
+                        </div>
+                      );
+                    }
+
+                    // Attempt to parse Order ID
+                    const orderIdMatch = activeEmail.subject.match(/ORD-\d{4}/) || activeEmail.body.match(/ORD-\d{4}/);
+                    const associatedOrderId = orderIdMatch ? orderIdMatch[0] : null;
+                    const orderObj = associatedOrderId ? orders.find(o => o.id === associatedOrderId) : null;
+
+                    return (
+                      <div className="flex flex-col space-y-4 text-left">
+                        {/* Email Header Panel */}
+                        <div className="bg-white rounded-lg p-4 border border-gray-150 shadow-sm space-y-3">
+                          <div className="flex justify-between items-start gap-2">
+                            <h2 className="text-sm font-black text-gray-900 leading-tight">
+                              {activeEmail.subject}
+                            </h2>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                deleteEmail(activeEmail.id);
+                                setSelectedEmailId(null);
+                              }}
+                              className="text-gray-400 hover:text-red-600 p-1 rounded hover:bg-gray-100 transition-all cursor-pointer border-none animate-fade-in"
+                              title="Delete email"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[10px] border-t border-gray-100 pt-3 text-gray-500">
+                            <div>
+                              <span className="font-bold">From:</span> {activeEmail.sender}
+                            </div>
+                            <div className="sm:text-right">
+                              <span className="font-bold">Sent:</span> {new Date(activeEmail.createdAt).toLocaleString()}
+                            </div>
+                            <div>
+                              <span className="font-bold">To:</span> {activeEmail.recipient}
+                            </div>
+                            <div className="sm:text-right">
+                              <span className="font-bold">Status:</span> <span className={activeEmail.isRead ? 'text-gray-400 font-bold' : 'text-amber-600 font-bold'}>{activeEmail.isRead ? 'Read' : 'Unread'}</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Email Body Content */}
+                        <div className="bg-white rounded-lg p-5 border border-gray-150 shadow-sm text-xs text-gray-700 whitespace-pre-wrap leading-relaxed font-sans min-h-[180px]">
+                          {activeEmail.body}
+                        </div>
+
+                        {/* Associated Order Action Panel */}
+                        {orderObj && (
+                          <div className="bg-gradient-to-r from-amber-50 to-orange-50/50 rounded-lg p-4 border border-amber-150 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                            <div className="space-y-1">
+                              <div className="flex items-center space-x-2">
+                                <span className="text-[10px] font-black text-amber-800 uppercase bg-amber-100 px-2 py-0.5 rounded tracking-wide">
+                                  Action Needed
+                                </span>
+                                <span className="text-xs font-extrabold text-gray-950 font-mono">
+                                  Order #{orderObj.id}
+                                </span>
+                              </div>
+                              <p className="text-[10px] text-gray-600">
+                                Customer: <span className="font-extrabold text-gray-800">{orderObj.customerName}</span> (Total: <span className="font-bold text-gray-900">{formatPrice(orderObj.total)}</span>)
+                              </p>
+                              <p className="text-[9px] text-gray-500">
+                                Payment Method: <span className="font-bold text-[#16A34A]">{orderObj.paymentMethod}</span>
+                              </p>
+                            </div>
+
+                            <div className="shrink-0 self-stretch sm:self-auto">
+                              {orderObj.paymentStatus === 'Awaiting Verification' ? (
+                                <button
+                                  type="button"
+                                  onClick={() => confirmOrderPayment(orderObj.id)}
+                                  className="w-full bg-[#16A34A] hover:bg-[#15803D] text-white font-black text-xs py-2 px-3.5 rounded shadow-md active:scale-95 transition-all cursor-pointer border-none flex items-center justify-center space-x-1.5"
+                                  id={`mailbox-verify-${orderObj.id}`}
+                                >
+                                  <CheckCircle className="w-4 h-4 text-white" />
+                                  <span>Verify & Confirm Payment</span>
+                                </button>
+                              ) : (
+                                <div className="flex items-center space-x-1.5 text-xs text-[#16A34A] font-extrabold bg-green-50 px-3 py-2 rounded border border-green-150">
+                                  <CheckCircle className="w-4 h-4" />
+                                  <span>Payment Confirmed</span>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
+                </div>
+              </div>
             </div>
           )}
 

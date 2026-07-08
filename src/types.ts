@@ -60,9 +60,20 @@ export interface Order {
   isInternational?: boolean;
   paymentMethod: string;
   status: 'Pending' | 'Shipped' | 'Delivered';
+  paymentStatus?: 'Unpaid' | 'Awaiting Verification' | 'Paid';
   createdAt: string;
   deliveryTime?: string;
   confirmedAt?: string;
+}
+
+export interface AdminEmail {
+  id: string;
+  subject: string;
+  body: string;
+  sender: string;
+  recipient: string;
+  createdAt: string;
+  isRead: boolean;
 }
 
 export interface ActivityLog {

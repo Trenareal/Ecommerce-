@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { Product, CartItem, Order, ActivityLog, VerifiedPhoto, Coupon, Promotion, CustomerProfile, ShippingAddress, SavedPaymentMethod } from '../types';
+import { Product, CartItem, Order, ActivityLog, VerifiedPhoto, Coupon, Promotion, CustomerProfile, ShippingAddress, SavedPaymentMethod, AdminEmail } from '../types';
 import { INITIAL_PRODUCTS, STATES_DELIVERY_FEES, INTERNATIONAL_DELIVERY_FEES } from '../data/products';
 
 interface StoreContextType {
@@ -23,7 +23,8 @@ interface StoreContextType {
   adminUsers: { name: string; email: string; password?: string }[];
   toast: { message: string; type: 'success' | 'info' | 'warning' } | null;
   currency: 'NGN' | 'USD';
-  sellerTab: 'overview' | 'customers' | 'products' | 'orders' | 'inventory' | 'discounts' | 'coupons' | 'reports' | 'settings' | 'logs' | 'audits';
+  sellerTab: 'overview' | 'customers' | 'products' | 'orders' | 'inventory' | 'discounts' | 'coupons' | 'reports' | 'settings' | 'logs' | 'audits' | 'emails';
+  adminEmails: AdminEmail[];
   
   setSearchQuery: (query: string) => void;
   setSelectedCategory: (category: string) => void;
@@ -36,7 +37,7 @@ interface StoreContextType {
   setIsCustomerAuthOpen: (open: boolean) => void;
   setIsCustomerDashboardOpen: (open: boolean) => void;
   setCurrency: (currency: 'NGN' | 'USD') => void;
-  setSellerTab: (tab: 'overview' | 'customers' | 'products' | 'orders' | 'inventory' | 'discounts' | 'coupons' | 'reports' | 'settings' | 'logs' | 'audits') => void;
+  setSellerTab: (tab: 'overview' | 'customers' | 'products' | 'orders' | 'inventory' | 'discounts' | 'coupons' | 'reports' | 'settings' | 'logs' | 'audits' | 'emails') => void;
   formatPrice: (priceInNaira: number) => string;
   
   addToCart: (product: Product, quantity?: number) => void;
@@ -54,6 +55,9 @@ interface StoreContextType {
     isInternational?: boolean; 
   }) => void;
   updateOrderStatus: (orderId: string, status: 'Pending' | 'Shipped' | 'Delivered', deliveryTime?: string) => void;
+  confirmOrderPayment: (orderId: string) => void;
+  markEmailAsRead: (emailId: string) => void;
+  deleteEmail: (emailId: string) => void;
   restockProduct: (productId: string, amount: number) => void;
   addNewProduct: (product: Omit<Product, 'id' | 'rating' | 'reviewsCount' | 'initialStock'>) => void;
   updateProduct: (productId: string, updatedFields: Partial<Product>) => void;
@@ -68,6 +72,7 @@ interface StoreContextType {
   loginAdmin: (email: string, passcode: string) => boolean;
   registerAdmin: (name: string, email: string, passcode: string) => boolean;
   logoutAdmin: () => void;
+  setCurrentAdmin: (admin: { name: string; email: string; password?: string } | null) => void;
 
   toggleWishlist: (productId: string) => void;
   updateCustomerProfile: (profile: Partial<CustomerProfile>) => void;
@@ -91,6 +96,10 @@ interface StoreContextType {
     nairaToUsdRate: number;
     defaultDeliveryFee: number;
     escrowProtectionFee: number;
+    emailjsServiceId?: string;
+    emailjsTemplateId?: string;
+    emailjsPublicKey?: string;
+    emailjsEnabled?: boolean;
   };
   addCoupon: (coupon: Omit<Coupon, 'id' | 'usageCount'>) => void;
   deleteCoupon: (id: string) => void;
@@ -221,7 +230,11 @@ const INITIAL_SETTINGS = {
   contactPhone: '+234 803 300 1234',
   nairaToUsdRate: 1500,
   defaultDeliveryFee: 1500,
-  escrowProtectionFee: 500
+  escrowProtectionFee: 500,
+  emailjsServiceId: '',
+  emailjsTemplateId: '',
+  emailjsPublicKey: '',
+  emailjsEnabled: false
 };
 
 export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -287,7 +300,22 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   });
 
   // Seller dashboard active tab state
-  const [sellerTab, setSellerTab] = useState<'overview' | 'customers' | 'products' | 'orders' | 'inventory' | 'discounts' | 'coupons' | 'reports' | 'settings' | 'logs' | 'audits'>('overview');
+  const [sellerTab, setSellerTab] = useState<'overview' | 'customers' | 'products' | 'orders' | 'inventory' | 'discounts' | 'coupons' | 'reports' | 'settings' | 'logs' | 'audits' | 'emails'>('overview');
+
+  const [adminEmails, setAdminEmails] = useState<AdminEmail[]>(() => {
+    const saved = localStorage.getItem('julia_agro_admin_emails');
+    return saved ? JSON.parse(saved) : [
+      {
+        id: 'email-welcome',
+        subject: 'Welcome to Julia Agro Secure Admin Mailbox 🌾',
+        body: 'Welcome to your secure seller administrative workspace. Here you will receive critical escrow nodes, customer order payment triggers, and transaction alerts. Please review the checkout queues and verify payments promptly.',
+        sender: 'escrow@julia-agro.com',
+        recipient: 'admin@julia-agro.com',
+        createdAt: new Date().toISOString(),
+        isRead: false
+      }
+    ];
+  });
 
   const formatPrice = (priceInNaira: number) => {
     if (currency === 'USD') {
@@ -402,6 +430,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   useEffect(() => {
     localStorage.setItem('julia_agro_orders', JSON.stringify(orders));
   }, [orders]);
+
+  useEffect(() => {
+    localStorage.setItem('julia_agro_admin_emails', JSON.stringify(adminEmails));
+  }, [adminEmails]);
 
   useEffect(() => {
     localStorage.setItem('julia_agro_logs', JSON.stringify(logs));
@@ -769,6 +801,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       : (STATES_DELIVERY_FEES[customer.state] || STATES_DELIVERY_FEES['Other States']);
     const orderId = `ORD-${Math.floor(1000 + Math.random() * 9000)}`;
 
+    const isOnlinePayment = customer.paymentMethod === 'Paystack Card' || customer.paymentMethod === 'Bank Transfer';
+    const initialPaymentStatus = isOnlinePayment ? 'Awaiting Verification' : 'Unpaid';
+
     const newOrder: Order = {
       id: orderId,
       items: cart.map(item => ({
@@ -790,8 +825,94 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       isInternational: !!customer.isInternational,
       paymentMethod: customer.paymentMethod,
       status: 'Pending',
+      paymentStatus: initialPaymentStatus,
       createdAt: new Date().toISOString()
     };
+
+    if (isOnlinePayment) {
+      const emailBody = `Dear Administrative Team,
+
+A client (${customer.name}) has submitted a payment notice for order #${orderId}.
+
+Details of Order:
+- Order ID: #${orderId}
+- Total Amount: NGN ${subtotal + fee}
+- Payment Method: ${customer.paymentMethod}
+- Destination Address: ${customer.address}, ${customer.state}
+- Customer Contact: ${customer.phone}
+
+Please inspect your escrow accounts / bank statements for credit verification of this transaction. After you confirm the payment, kindly click 'Confirm Payment' on the admin dashboard under the Orders tab. This will instantly release dispatch logs, transition the client's screen to 'Payment Completed', and notify them.
+
+Best regards,
+Automated Escrow node
+Julia Agro-Seller Platform`;
+
+      const newEmail: AdminEmail = {
+        id: `email-${orderId}-${Date.now()}`,
+        subject: `⚠️ ACTION REQUIRED: Confirm Payment for Order #${orderId}`,
+        body: emailBody,
+        sender: 'escrow@julia-agro.com',
+        recipient: 'admin@julia-agro.com',
+        createdAt: new Date().toISOString(),
+        isRead: false
+      };
+
+      setAdminEmails(prev => [newEmail, ...prev]);
+
+      // Send real-time notification to user's Gmail using EmailJS
+      if (storeSettings.emailjsEnabled && storeSettings.emailjsServiceId && storeSettings.emailjsTemplateId && storeSettings.emailjsPublicKey) {
+        const emailParams = {
+          service_id: storeSettings.emailjsServiceId,
+          template_id: storeSettings.emailjsTemplateId,
+          user_id: storeSettings.emailjsPublicKey,
+          template_params: {
+            subject: `⚠️ ACTION REQUIRED: Confirm Payment for Order #${orderId}`,
+            message: emailBody,
+            order_id: orderId,
+            customer_name: customer.name,
+            total_amount: `NGN ${subtotal + fee}`,
+            to_email: storeSettings.contactEmail || 'josiahtreasure1424@gmail.com',
+            payment_method: customer.paymentMethod,
+            customer_phone: customer.phone,
+            delivery_address: `${customer.address}, ${customer.state}`
+          }
+        };
+
+        fetch('https://api.emailjs.com/api/v1.0/email/send', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(emailParams)
+        })
+        .then(response => {
+          if (response.ok) {
+            console.log('Real-time escrow email dispatched to Gmail via EmailJS.');
+            const successLog: ActivityLog = {
+              id: `log-emailjs-success-${orderId}-${Date.now()}`,
+              message: `Gmail notification successfully dispatched for Order ${orderId} via EmailJS.`,
+              type: 'system',
+              timestamp: new Date().toISOString()
+            };
+            setLogs(prev => [successLog, ...prev]);
+          } else {
+            return response.text().then(text => {
+              throw new Error(text || 'EmailJS rejected the dispatch');
+            });
+          }
+        })
+        .catch(err => {
+          console.error('EmailJS dispatch failed:', err);
+          const failedLog: ActivityLog = {
+            id: `log-emailjs-error-${orderId}-${Date.now()}`,
+            message: `Gmail dispatch failed for Order ${orderId}: ${err.message || err}`,
+            type: 'system',
+            timestamp: new Date().toISOString()
+          };
+          setLogs(prev => [failedLog, ...prev]);
+        });
+      }
+    }
 
     // Update orders
     setOrders(prev => {
@@ -873,6 +994,47 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       return o;
     }));
     showToast(`Order ${orderId} status updated to ${status}.`, 'success');
+  };
+
+  const confirmOrderPayment = (orderId: string) => {
+    setOrders(prev => prev.map(o => {
+      if (o.id === orderId) {
+        return { ...o, paymentStatus: 'Paid' };
+      }
+      return o;
+    }));
+
+    // Create system log
+    const confirmLog: ActivityLog = {
+      id: `log-confirm-payment-${orderId}-${Date.now()}`,
+      message: `Admin verified and confirmed payment for Order ${orderId}. Escrow released.`,
+      type: 'system',
+      timestamp: new Date().toISOString()
+    };
+    setLogs(prev => [confirmLog, ...prev]);
+
+    // Send a confirmation notification email to admin just for trace
+    const paymentConfirmEmail: AdminEmail = {
+      id: `email-confirm-${orderId}-${Date.now()}`,
+      subject: `✅ CONFIRMED: Payment for Order #${orderId} verified`,
+      body: `Hi Admin,\n\nYou have successfully confirmed the payment for Order #${orderId}. The customer has been notified, and the status has been transitioned to 'Payment Completed'. You can now dispatch the order.`,
+      sender: 'escrow@julia-agro.com',
+      recipient: 'admin@julia-agro.com',
+      createdAt: new Date().toISOString(),
+      isRead: false
+    };
+    setAdminEmails(prev => [paymentConfirmEmail, ...prev]);
+
+    showToast(`Payment for Order ${orderId} has been verified and confirmed!`, 'success');
+  };
+
+  const markEmailAsRead = (emailId: string) => {
+    setAdminEmails(prev => prev.map(em => em.id === emailId ? { ...em, isRead: true } : em));
+  };
+
+  const deleteEmail = (emailId: string) => {
+    setAdminEmails(prev => prev.filter(em => em.id !== emailId));
+    showToast('Email deleted successfully.', 'info');
   };
 
   const restockProduct = (productId: string, amount: number) => {
@@ -1092,6 +1254,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       toast,
       currency,
       sellerTab,
+      adminEmails,
       
       setSearchQuery,
       setSelectedCategory,
@@ -1114,6 +1277,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       
       placeOrder,
       updateOrderStatus,
+      confirmOrderPayment,
+      markEmailAsRead,
+      deleteEmail,
       restockProduct,
       addNewProduct,
       updateProduct,
@@ -1128,6 +1294,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       loginAdmin,
       registerAdmin,
       logoutAdmin,
+      setCurrentAdmin,
  
       toggleWishlist,
       updateCustomerProfile,
